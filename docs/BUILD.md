@@ -25,12 +25,12 @@ clone выполните `git submodule update --init --recursive`. Для пр�
 
 ```sh
 sudo apt install build-essential cmake dpkg-dev
-taskset -c 0,1 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-taskset -c 0,1 cmake --build build --parallel 2
+taskset -c 0 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+taskset -c 0 cmake --build build --parallel 2
 ./build/bin/aoip_peer_rpi5 --check
 ```
 
-`--check` только читает окружение; обычный запуск включает политику CPU0/CPU1.
+`--check` только читает окружение; обычный запуск включает политику CPU0.
 Сборка платформы на другом Linux может проверить компиляцию, но не доказывает
 работу Pi5/RT. Для SDK: `cmake --install build --prefix "$PWD/sdk"`.
 
@@ -42,7 +42,7 @@ taskset -c 0,1 cmake --build build --parallel 2
 в текущий каталог Pi:
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.2.0-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.3.1-1_arm64.deb
 sudo piaoip-configure --interface eth0 --peer 192.168.1.1 --restart
 /usr/lib/piaoip/aoip_peer_rpi5 --check
 systemctl status pi-aoip.service --no-pager
@@ -62,22 +62,30 @@ Pi5 — `192.168.1.2/24`, ПК — `192.168.1.1/24`, маска `255.255.255.0`.
 | `/var/lib/piaoip/profile.txt` | Сохранённый аудиопрофиль, владелец piaoip |
 | `journalctl -u pi-aoip.service -b` | Журнал текущей загрузки |
 
-Профиль по умолчанию: 8×8, 192 кГц, PCM32, до 24 кадров в сетевом пакете.
+Число физических входов/выходов задаётся локально на каждой Pi. Для устройства
+8×8: `sudo piaoip-configure --inputs 8 --outputs 8 --restart`.
+Windows получает эти числа через discovery; изменить их через панель, INI или
+сетевой запрос нельзя. Пункты «Каналы» включают/отключают использование уже
+существующих каналов, сохраняя их физические номера и число каналов ASIO.
+
+Профиль по умолчанию: 8×8, 192 кГц, PCM32, до 16 кадров в сетевом пакете.
 Служба ждёт подписку ASIO и не отправляет фоновый PCM. v3 поддерживает маски
 каналов, точный цифровой ноль, штатную отписку и 3-секундную аренду сессии.
-Другие профили вплоть до 64×64 остаются доступными. См. [режим 8×8](LOW-LATENCY.md).
+Другие устройства до 64×64 настраиваются на самой Pi; Windows-драйвер общий.
+Частота, PCM и буферы настраиваются в панели Windows. См. [режим 8×8](LOW-LATENCY.md).
 `pi-aoip-lan.service` устанавливает rx-usecs/tx-usecs=0 и отключает EEE на
 выбранном Ethernet-интерфейсе. Wi-Fi для Интернета не затрагивается.
+IRQ выбранного Ethernet также закрепляется за CPU0.
 Размер ASIO-буфера и guard настраиваются на Windows отдельно.
-RX: CPU0/FIFO70; TX: CPU1/FIFO70; control/reporter: CPU1/SCHED_OTHER.
-`LimitRTPRIO=80`, `LimitMEMLOCK=infinity`, `CPUAffinity=0 1` задаёт systemd unit.
+RX/TX: CPU0/FIFO70; control/reporter: CPU0/SCHED_OTHER.
+`LimitRTPRIO=80`, `LimitMEMLOCK=infinity`, `CPUAffinity=0` задаёт systemd unit.
 При невозможности применить ограничения процесс завершается, а не запускается
-на произвольных CPU. CPU2/CPU3 не используются сетевой службой.
+на произвольных CPU. CPU1/CPU2/CPU3 не используются сетевой службой.
 
 ## Обновление и удаление
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.2.0-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.3.1-1_arm64.deb
 sudo apt remove piaoip-rpi5
 ```
 
@@ -95,7 +103,7 @@ sudo apt remove piaoip-rpi5
 ## Своя программа
 
 ```cmake
-find_package(Pi5AoIP 2.1 CONFIG REQUIRED)
+find_package(Pi5AoIP 2.3.1 CONFIG REQUIRED)
 target_link_libraries(my_service PRIVATE Pi5AoIP::platform)
 ```
 

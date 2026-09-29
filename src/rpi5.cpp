@@ -41,15 +41,15 @@ bool initialize(std::string& error) {
   if (!host.realtime_kernel) { error = "PREEMPT_RT kernel required; the AoIP package does not replace the kernel"; return false; }
   if (sysconf(_SC_NPROCESSORS_ONLN) < 4) { error = "Four online Pi 5 CPUs are required"; return false; }
   // A process-wide guard also covers startup work before individual role pinning.
-  cpu_set_t allowed; CPU_ZERO(&allowed); CPU_SET(0, &allowed); CPU_SET(1, &allowed);
+  cpu_set_t allowed; CPU_ZERO(&allowed); CPU_SET(0, &allowed);
   int status = pthread_setaffinity_np(pthread_self(), sizeof(allowed), &allowed);
-  if (status) { error = std::string("Cannot restrict Pi AoIP to CPU0/CPU1: ") + std::strerror(status); return false; }
+  if (status) { error = std::string("Cannot restrict Pi AoIP to CPU0: ") + std::strerror(status); return false; }
   peer::set_thread_setup(configure_thread);
   return true;
 }
 
 bool configure_thread(peer::ThreadRole role) {
-  const unsigned cpu = role == peer::ThreadRole::receive ? 0 : 1;
+  const unsigned cpu = 0;
   const bool realtime = role == peer::ThreadRole::transmit || role == peer::ThreadRole::receive;
   cpu_set_t mask; CPU_ZERO(&mask); CPU_SET(cpu, &mask);
   int status = pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask);

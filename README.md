@@ -9,7 +9,7 @@ An AoIP platform library and service for **Raspberry Pi 5 Model B** running
 CPU cores and starts the shared runtime from AoIP-lib. Installation uses a
 Debian `.deb` package.
 
-Version 2.2 defaults to **8×8 / 192 kHz / PCM32**, with v3 channel masks,
+Version 2.3 defaults to **8×8 / 192 kHz / PCM32**, with v3 channel masks,
 leased ASIO start/stop and digital-zero suppression. The universal profiles
 up to 64 channels remain available. See [low-latency operation](docs/LOW-LATENCY.md).
 
@@ -29,12 +29,12 @@ up to 64 channels remain available. See [low-latency operation](docs/LOW-LATENCY
 ```mermaid
 flowchart LR
   ETH[Gigabit Ethernet] --> RX[CPU0: RX / FIFO70]
-  TX[CPU1: TX / FIFO70] --> ETH
-  CTRL[CPU1: control + reporter / SCHED_OTHER]
-  FX[CPU2 + CPU3: reserved for effects]
+  TX[CPU0: TX / FIFO70] --> ETH
+  CTRL[CPU0: control + reporter / SCHED_OTHER]
+  FX[CPU1 + CPU2 + CPU3: free of AoIP]
 ```
 
-Networking uses **CPU0/CPU1** only. CPU2/CPU3 are reserved for effects.
+All AoIP roles use **CPU0**. CPU1, CPU2 and CPU3 are available for other work.
 The library does not reconfigure IRQs, Wi-Fi, Bluetooth, USB, GPIO or the CPU
 frequency governor.
 
@@ -100,7 +100,7 @@ They are not part of this library or its build requirements.
 | Repository | Responsibility |
 |---|---|
 | [AoIP-lib](https://github.com/danrey-bilo/AoIP-lib) | Protocol, PCM, queues, timeline buffering and UDP peer |
-| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Raspberry Pi 5, PREEMPT_RT, Ethernet, CPU0/CPU1, systemd and DEB |
+| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Raspberry Pi 5, PREEMPT_RT, Ethernet, CPU0, systemd and DEB |
 | [Win11-asio-AoIP](https://github.com/danrey-bilo/Win11-asio-AoIP) | ASIO DLL, Windows network threads, settings panel and MSI |
 
 ## License

@@ -2,7 +2,7 @@
 
 # Pi5-AoIP
 
-Версия 2.2: [8×8 / 192 кГц / PCM32, минимальная задержка и энергосбережение](docs/LOW-LATENCY.md).
+Версия 2.3.1: [8×8 / 192 кГц / PCM32, рабочая задержка и энергосбережение](docs/LOW-LATENCY.md).
 
 [English](README.md) | **Русский**
 
@@ -19,19 +19,19 @@
 | `Pi5AoIP::platform` | Проверка Pi 5/RT, Ethernet IPv4, привязка потоков |
 | `aoip_peer_rpi5` | Запуск общего синтетического PCM peer с политикой платы |
 | `pi-aoip.service` | Отдельный пользователь, лимиты RT, состояние и автозапуск |
-| `piaoip-configure` | Настройка интерфейса и IPv4 компьютера |
+| `piaoip-configure` | Настройка интерфейса, IPv4 компьютера и физических каналов данного устройства |
 
 ## Распределение CPU
 
 ```mermaid
 flowchart LR
   ETH[Gigabit Ethernet] --> RX[CPU0: RX / FIFO70]
-  TX[CPU1: TX / FIFO70] --> ETH
-  CTRL[CPU1: control + reporter / SCHED_OTHER]
-  FX[CPU2 + CPU3: reserved for effects]
+  TX[CPU0: TX / FIFO70] --> ETH
+  CTRL[CPU0: control + reporter / SCHED_OTHER]
+  FX[CPU1 + CPU2 + CPU3: free of AoIP]
 ```
 
-Сеть использует только **CPU0/CPU1**. CPU2/CPU3 оставлены для эффектов.
+Все потоки AoIP используют только **CPU0**. CPU1, CPU2 и CPU3 доступны другим задачам.
 Библиотека не перенастраивает IRQ, Wi-Fi, Bluetooth, USB, GPIO или governor.
 
 ## Быстрый старт
@@ -79,7 +79,7 @@ docs/                  API, установка и архитектура
 | Репозиторий | Ответственность |
 |---|---|
 | [AoIP-lib](https://github.com/danrey-bilo/AoIP-lib) | Протокол, PCM, очереди, временной буфер, UDP peer |
-| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Raspberry Pi 5, PREEMPT_RT, Ethernet, CPU0/CPU1, systemd и DEB |
+| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Raspberry Pi 5, PREEMPT_RT, Ethernet, CPU0, systemd и DEB |
 | [Win11-asio-AoIP](https://github.com/danrey-bilo/Win11-asio-AoIP) | ASIO DLL, сетевые потоки Windows, панель настройки и MSI |
 
 Личное некоммерческое использование бесплатно. Для коммерческого использования

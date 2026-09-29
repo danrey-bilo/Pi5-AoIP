@@ -9,7 +9,7 @@ struct HostStatus {
 };
 struct Endpoint { std::string interface_name, ipv4; };
 HostStatus inspect_host();
-// Validate Pi 5 / PREEMPT_RT, then install the CPU0/CPU1 policy before threads start.
+// Validate Pi 5 / PREEMPT_RT, then install the CPU0 policy before threads start.
 bool initialize(std::string& error);
 bool configure_thread(peer::ThreadRole role);
 // Empty interface selects the sole active wired IPv4 interface. Never selects Wi-Fi.

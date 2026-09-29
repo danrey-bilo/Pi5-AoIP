@@ -6,7 +6,7 @@ sequenceDiagram
   participant P as Pi5 main
   participant B as Pi5AoIP platform
   participant R as AoIP peer runtime
-  S->>P: User piaoip / CPU0-1 / RT limits
+  S->>P: User piaoip / CPU0 / RT limits
   P->>B: inspect + initialize
   B-->>P: Pi5 / RT / CPU policy ready
   P->>B: find wired IPv4
@@ -21,12 +21,13 @@ sequenceDiagram
 
 ## CPU и права
 
-`initialize()` ограничивает главный поток CPU0/CPU1 до создания остальных потоков.
-RX закрепляется за CPU0/FIFO70, TX за CPU1/FIFO70, control/reporter за CPU1/SCHED_OTHER.
-Systemd задаёт общую маску и разрешение RT. CPU2/CPU3 не используются даже при сбое
+`initialize()` ограничивает главный поток CPU0 до создания остальных потоков.
+RX и TX закрепляются за CPU0/FIFO70, control/reporter за CPU0/SCHED_OTHER.
+Systemd задаёт общую маску и разрешение RT. CPU1/CPU2/CPU3 не используются даже при сбое
 настройки: демон завершается при отказе применить thread policy.
 
-IRQ остаются политикой ОС. Изоляция эффектов, RT-ядро, Ethernet full duplex и
+Пакетная служба `pi-aoip-lan` закрепляет IRQ выбранного Ethernet за CPU0.
+Остальные IRQ остаются политикой ОС. Изоляция эффектов, RT-ядро, Ethernet full duplex и
 достаточное охлаждение входят в подготовку системы, а не устанавливаются библиотекой.
 На общей памяти/шине возможна конкуренция с эффектами даже при разных CPU.
 
