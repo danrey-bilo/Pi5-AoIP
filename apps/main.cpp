@@ -2,7 +2,7 @@
 #include <aoip/service.hpp>
 int main(int argc, char** argv) {
   if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
-    std::puts("PiAoIP 2.1.0 / Pi5-AoIP"); return 0;
+    std::puts("PiAoIP 2.2.0 / Pi5-AoIP"); return 0;
   }
   if (argc == 2 && std::strcmp(argv[1], "--check") == 0) {
     const auto host = aoip::rpi5::inspect_host();
@@ -30,5 +30,5 @@ int main(int argc, char** argv) {
   std::printf("Pi5 audio interface=%s address=%s peer=%s; CPU0/CPU1 only\n",
               endpoint.interface_name.c_str(), endpoint.ipv4.c_str(), argv[2]);
   std::fflush(stdout);
-  return aoip::peer::run_service(argc, argv, {endpoint.ipv4.c_str()});
+  return aoip::peer::run_service(argc, argv, {endpoint.ipv4.c_str(), true});
 }

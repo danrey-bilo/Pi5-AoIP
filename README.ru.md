@@ -2,6 +2,8 @@
 
 # Pi5-AoIP
 
+Версия 2.2: [8×8 / 192 кГц / PCM32, минимальная задержка и энергосбережение](docs/LOW-LATENCY.md).
+
 [English](README.md) | **Русский**
 
 Платформенная библиотека и служба AoIP для **Raspberry Pi 5 Model B** с

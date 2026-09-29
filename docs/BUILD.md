@@ -42,7 +42,7 @@ taskset -c 0,1 cmake --build build --parallel 2
 в текущий каталог Pi:
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.1.0-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.2.0-1_arm64.deb
 sudo piaoip-configure --interface eth0 --peer 192.168.1.1 --restart
 /usr/lib/piaoip/aoip_peer_rpi5 --check
 systemctl status pi-aoip.service --no-pager
@@ -62,7 +62,12 @@ Pi5 — `192.168.1.2/24`, ПК — `192.168.1.1/24`, маска `255.255.255.0`.
 | `/var/lib/piaoip/profile.txt` | Сохранённый аудиопрофиль, владелец piaoip |
 | `journalctl -u pi-aoip.service -b` | Журнал текущей загрузки |
 
-Профиль по умолчанию: 64×64, 192 кГц, PCM32, 5 кадров в сетевом пакете.
+Профиль по умолчанию: 8×8, 192 кГц, PCM32, до 24 кадров в сетевом пакете.
+Служба ждёт подписку ASIO и не отправляет фоновый PCM. v3 поддерживает маски
+каналов, точный цифровой ноль, штатную отписку и 3-секундную аренду сессии.
+Другие профили вплоть до 64×64 остаются доступными. См. [режим 8×8](LOW-LATENCY.md).
+`pi-aoip-lan.service` устанавливает rx-usecs/tx-usecs=0 и отключает EEE на
+выбранном Ethernet-интерфейсе. Wi-Fi для Интернета не затрагивается.
 Размер ASIO-буфера и guard настраиваются на Windows отдельно.
 RX: CPU0/FIFO70; TX: CPU1/FIFO70; control/reporter: CPU1/SCHED_OTHER.
 `LimitRTPRIO=80`, `LimitMEMLOCK=infinity`, `CPUAffinity=0 1` задаёт systemd unit.
@@ -72,7 +77,7 @@ RX: CPU0/FIFO70; TX: CPU1/FIFO70; control/reporter: CPU1/SCHED_OTHER.
 ## Обновление и удаление
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.1.0-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.2.0-1_arm64.deb
 sudo apt remove piaoip-rpi5
 ```
 

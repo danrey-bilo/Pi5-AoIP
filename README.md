@@ -9,6 +9,10 @@ An AoIP platform library and service for **Raspberry Pi 5 Model B** running
 CPU cores and starts the shared runtime from AoIP-lib. Installation uses a
 Debian `.deb` package.
 
+Version 2.2 defaults to **8×8 / 192 kHz / PCM32**, with v3 channel masks,
+leased ASIO start/stop and digital-zero suppression. The universal profiles
+up to 64 channels remain available. See [low-latency operation](docs/LOW-LATENCY.md).
+
 **[Getting started](#quick-start)** · **[CPU allocation](#cpu-allocation)** · **[Documentation](#documentation)** · **[License](LICENSE)**
 
 ## Components

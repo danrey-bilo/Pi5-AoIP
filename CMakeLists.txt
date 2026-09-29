@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Pi5AoIP VERSION 2.1.0 LANGUAGES CXX)
+project(Pi5AoIP VERSION 2.2.0 LANGUAGES CXX)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
   message(FATAL_ERROR "Pi5-AoIP requires Linux; the runtime additionally checks Pi 5 and PREEMPT_RT")
 endif()
