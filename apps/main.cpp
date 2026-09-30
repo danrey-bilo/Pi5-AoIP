@@ -2,7 +2,7 @@
 #include <aoip/service.hpp>
 int main(int argc, char** argv) {
   if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
-    std::puts("PiAoIP 2.3.1 / Pi5-AoIP"); return 0;
+    std::puts("PiAoIP 2.4.3 / Pi5-AoIP"); return 0;
   }
   if (argc == 2 && std::strcmp(argv[1], "--check") == 0) {
     const auto host = aoip::rpi5::inspect_host();

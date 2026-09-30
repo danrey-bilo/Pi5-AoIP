@@ -1,86 +1,59 @@
-![Pi5-AoIP](docs/assets/header.svg)
+![Pi5-AoIP 2.4.3](docs/assets/header.svg)
 
 # Pi5-AoIP
 
-Версия 2.3.1: [8×8 / 192 кГц / PCM32, рабочая задержка и энергосбережение](docs/LOW-LATENCY.md).
-
 [English](README.md) | **Русский**
 
-Платформенная библиотека и служба AoIP для **Raspberry Pi 5 Model B** с
-**PREEMPT_RT**. Выбирает проводной интерфейс, назначает CPU сетевым потокам
-и запускает общий runtime из AoIP-lib. Устанавливается пакетом `.deb`.
+Платформенная библиотека и сервис синтетического PCM для Raspberry Pi 5 Model B с PREEMPT_RT. Все потоки AoIP используют CPU0.
 
-**[Начало работы](docs/BUILD.md)** · **[RT-образ](docs/RT-IMAGE.md)** · **[Архитектура](docs/ARCHITECTURE.md)** · **[Проверки на Pi5](docs/VALIDATION.md)** · **[Лицензия](docs/LICENSE-RU.md)**
+**[Скачать 2.4.3](https://github.com/danrey-bilo/Pi5-AoIP/releases/tag/v2.4.3)** · **[Описание релиза](docs/RELEASE-2.4.3.ru.md)** · **[Проверки](docs/VALIDATION.ru.md)**
 
-## Назначение
+## Начало работы
 
-| Компонент | Что делает |
-|---|---|
-| `Pi5AoIP::platform` | Проверка Pi 5/RT, Ethernet IPv4, привязка потоков |
-| `aoip_peer_rpi5` | Запуск общего синтетического PCM peer с политикой платы |
-| `pi-aoip.service` | Отдельный пользователь, лимиты RT, состояние и автозапуск |
-| `piaoip-configure` | Настройка интерфейса, IPv4 компьютера и физических каналов данного устройства |
+Нужны **Raspberry Pi 5 Model B, Debian 13 ARM64, PREEMPT_RT и проводной Gigabit Ethernet**.
 
-## Распределение CPU
-
-```mermaid
-flowchart LR
-  ETH[Gigabit Ethernet] --> RX[CPU0: RX / FIFO70]
-  TX[CPU0: TX / FIFO70] --> ETH
-  CTRL[CPU0: control + reporter / SCHED_OTHER]
-  FX[CPU1 + CPU2 + CPU3: free of AoIP]
-```
-
-Все потоки AoIP используют только **CPU0**. CPU1, CPU2 и CPU3 доступны другим задачам.
-Библиотека не перенастраивает IRQ, Wi-Fi, Bluetooth, USB, GPIO или governor.
-
-## Быстрый старт
-
-Нужны Pi 5, Debian 13 ARM64, уже установленное RT-ядро и проводной Gigabit Ethernet.
-Проверено на Pi5 Model B Rev 1.1 / 4 ГБ с Raspberry Pi OS Lite 64-bit и
-официальным ядром `6.18.50+rpt-rpi-v8-rt`. BCM2712/RP1 и периферия поддерживаются.
+Скачайте [piaoip-rpi5_2.4.3-1_arm64.deb](https://github.com/danrey-bilo/Pi5-AoIP/releases/download/v2.4.3/piaoip-rpi5_2.4.3-1_arm64.deb) и выполните на Pi:
 
 ```sh
-git clone --recurse-submodules https://github.com/danrey-bilo/Pi5-AoIP.git
-cd Pi5-AoIP
-sudo apt install build-essential cmake
-taskset -c 0,1 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-taskset -c 0,1 cmake --build build --parallel 2
-./build/bin/aoip_peer_rpi5 --check
+sudo apt install ./piaoip-rpi5_2.4.3-1_arm64.deb
+sudo piaoip-configure --interface eth0 --peer 192.168.50.1 --restart
+/usr/lib/piaoip/aoip_peer_rpi5 --check
+systemctl status pi-aoip --no-pager
 ```
 
-Собираются библиотека платформы и служба. Установка и Ethernet-настройка
-описаны в [полной инструкции](docs/BUILD.md). Пакет не устанавливает
-RT-ядро и не меняет адреса ОС.
+`192.168.50.1` — пример адреса **ПК**. Сначала настройте доступные друг другу IPv4-адреса ПК и Pi. Пакет не назначает IP и не устанавливает RT-ядро. Для разработки приложений доступен дополнительный `piaoip-rpi5-sdk_2.4.3-1_arm64.deb`: заголовки, статические библиотеки и CMake-пакеты. Для запуска сервиса SDK не требуется.
 
-## Структура
+Дополнительный SDK содержит заголовки закрытой AoIP-lib и распространяется для разработчиков с доступом в [закрытом релизе AoIP-lib](https://github.com/danrey-bilo/AoIP-lib/releases/tag/v2.4.3). В публичный платформенный релиз входит runtime-пакет.
 
-```text
-include/aoip/rpi5.hpp   API платформы
-src/rpi5.cpp           модель, RT, Ethernet и политика потоков
-apps/main.cpp          запуск с политикой платы
-external/AoIP-lib/     зависимость, закреплённая git submodule
-docs/                  API, установка и архитектура
-```
+Профиль новой установки: **8×8 / 192 kHz / PCM32**. При обновлении существующий профиль устройства сохраняется. Wi-Fi остаётся для обслуживания, аудио использует Ethernet. Платформенная библиотека не отключает USB, Bluetooth и GPIO.
 
-**[API платформы](docs/API.md)** · **[Установка и восстановление](docs/BUILD.md)**
+## Возможности
 
-Готовый peer пока генерирует синтетический PCM и проверяет обратный поток.
-Драйвер физического ADC/DAC и обработка эффектов здесь ещё не реализованы.
+| Параметр | Поддержка |
+|---|---|
+| Плата | Raspberry Pi 5 Model B |
+| Система | Debian 13 ARM64 / PREEMPT_RT |
+| Потоки AoIP | CPU0; RX/TX — FIFO 70 |
+| Профиль | `/var/lib/piaoip/profile.txt` |
+| Сеть | `/etc/piaoip/peer.conf` |
+| Аудиопрофили | До 64 каналов в направлении; 44,1–192 кГц; PCM16/24/32 |
+| Транспорт | PiAoIP UDP/IPv4 через Ethernet; не AES67 и не Dante |
 
-## Средства разработки
+## Документация
 
-Тесты, запускаемые примеры, диагностика и скрипты сборки установщиков находятся
-в закрытом [AoIP-debug-tool](https://github.com/danrey-bilo/AoIP-debug-tool) для разработчиков проекта.
-Они не входят в библиотеку и не нужны для её сборки.
+[Установка и сборка](docs/BUILD.ru.md) · [API платформы](docs/API.ru.md) · [Архитектура](docs/ARCHITECTURE.ru.md) · [Проверки](docs/VALIDATION.ru.md)
+
+Основной язык документации — английский; у актуальных руководств есть русские версии. Версия 2.4.3 — **предварительный выпуск**. Проверка сборки и пакетов не подтверждает физическую работу ADC/DAC или гарантированную задержку. Сервис Pi генерирует и проверяет синтетический PCM; для физической звуковой карты нужен аппаратный аудиобэкенд.
 
 ## Компоненты проекта
 
-| Репозиторий | Ответственность |
+| Репозиторий | Назначение |
 |---|---|
-| [AoIP-lib](https://github.com/danrey-bilo/AoIP-lib) | Протокол, PCM, очереди, временной буфер, UDP peer |
-| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Raspberry Pi 5, PREEMPT_RT, Ethernet, CPU0, systemd и DEB |
-| [Win11-asio-AoIP](https://github.com/danrey-bilo/Win11-asio-AoIP) | ASIO DLL, сетевые потоки Windows, панель настройки и MSI |
+| [AoIP-lib](https://github.com/danrey-bilo/AoIP-lib) | Протокол и переносимые библиотеки |
+| [Win11-asio-AoIP](https://github.com/danrey-bilo/Win11-asio-AoIP) | Драйвер ASIO и панель Windows |
+| [Pi4-AoIP](https://github.com/danrey-bilo/Pi4-AoIP) | Сервис Raspberry Pi 4 / PREEMPT_RT |
+| [Pi5-AoIP](https://github.com/danrey-bilo/Pi5-AoIP) | Сервис Raspberry Pi 5 / PREEMPT_RT |
 
-Личное некоммерческое использование бесплатно. Для коммерческого использования
-требуется отдельная платная лицензия. [Условия](LICENSE) · [Пояснение](docs/LICENSE-RU.md).
+## Лицензия
+
+Личное некоммерческое использование бесплатно. Для коммерческого использования требуется отдельная платная письменная лицензия. См. [LICENSE](LICENSE) и [русское пояснение](docs/LICENSE-RU.md).

@@ -1,38 +1,20 @@
-# API платформы Pi5
+**English** | [Русский](API.ru.md)
 
-`find_package(Pi5AoIP 2.3.1 CONFIG REQUIRED)` и `Pi5AoIP::platform`.
+# Pi 5 platform API
 
-```cpp
-#include <aoip/rpi5.hpp>
-#include <thread>
+Include `<aoip/rpi5.hpp>` and link `Pi5AoIP::platform`. The platform library depends on `AoIP::peer`. Build-tree alias `PiAoIP::rpi5` remains available.
 
-std::string error;
-if (!aoip::rpi5::initialize(error)) {
-    // Сообщить error и завершить запуск сервиса.
-    return 2;
-}
-std::thread receiver([] {
-    aoip::peer::enter_thread_role(aoip::peer::ThreadRole::receive);
-    // Собственный приёмный цикл. Ошибка affinity/FIFO завершает процесс.
-});
-receiver.join();
-```
-
-`initialize()` вызывается в главном потоке ДО создания остальных потоков:
-проверяет модель и RT-ядро, ограничивает главный поток CPU0 и устанавливает
-политику ролей peer. Потомки наследуют ограничение до своего назначения роли.
-Не заменяйте hook во время работы потоков. Не вызывайте `initialize()` из потока
-аудиоэффектов, которому нужны CPU1, CPU2 или CPU3.
-
-| API | Назначение |
+| Function | Contract |
 |---|---|
-| `inspect_host()` | Читает модель, версию ядра, признак PREEMPT_RT и список isolated CPUs; ничего не изменяет |
-| `initialize(error)` | Проверяет Pi 5/RT/четыре online CPU и устанавливает политику CPU0; `false` и текст ошибки при отказе |
-| `configure_thread(role)` | Все роли → CPU0; RX/TX → FIFO70; control/reporter → SCHED_OTHER; `false` при ошибке |
-| `find_wired_endpoint(name, endpoint, error)` | Выбирает один активный физический Ethernet IPv4; пустое имя означает автоматический выбор; исключает Wi-Fi и неоднозначный выбор |
+| `inspect_host()` | Reads board model, kernel/RT status and isolated CPU list |
+| `initialize(error)` | Validates Pi 5/PREEMPT_RT and installs the process/thread CPU policy before workers start |
+| `configure_thread(role)` | Applies the role's affinity and scheduler; returns false on failure |
+| `find_wired_endpoint(interface, endpoint, error)` | Selects an up/running physical wired IPv4 interface; rejects Wi-Fi and ambiguous automatic selection |
 
-Для FIFO70 необходим `LimitRTPRIO=80` у systemd-службы. Пример готовой службы
-в каталоге `packaging/debian-pi5` закрытого [репозитория разработчиков](https://github.com/danrey-bilo/AoIP-debug-tool). Она использует отдельного пользователя
-`piaoip`, `CPUAffinity=0` и каталог состояния `/var/lib/piaoip`.
-Библиотека не меняет настройки IRQ, boot cmdline, сеть, Wi-Fi, Bluetooth, USB или
-GPIO. Ограничение касается потоков PiAoIP; распределение системных IRQ задаётся ОС.
+`HostStatus` contains model, kernel, isolated CPUs and the board/RT booleans. `Endpoint` contains interface name and IPv4. An empty interface requests automatic selection of the sole eligible wired endpoint. When multiple endpoints exist, select the interface explicitly and use one IPv4 address.
+
+RX and TX: CPU0 / FIFO70; control and reporter: CPU0 / SCHED_OTHER. The library does not configure IRQ affinity, the governor or peripherals. The service package may include additional policy, documented separately. Call `initialize()` before starting `run_service()`; do not change the thread setup callback while workers are active.
+
+The runtime wrapper's `--check` is read-only. Normal startup performs board/RT checks and waits for an eligible wired endpoint. `--version` prints the product version without requiring the target board.
+
+These APIs provide scheduling and endpoint policy, not an ADC/DAC driver. Use a separate hardware backend for physical audio.

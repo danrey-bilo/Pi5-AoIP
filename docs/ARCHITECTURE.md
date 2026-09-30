@@ -1,45 +1,22 @@
-# Архитектура платформы Raspberry Pi 5
+**English** | [Русский](ARCHITECTURE.ru.md)
+
+# Pi 5 architecture
 
 ```mermaid
-sequenceDiagram
-  participant S as systemd
-  participant P as Pi5 main
-  participant B as Pi5AoIP platform
-  participant R as AoIP peer runtime
-  S->>P: User piaoip / CPU0 / RT limits
-  P->>B: inspect + initialize
-  B-->>P: Pi5 / RT / CPU policy ready
-  P->>B: find wired IPv4
-  P->>R: run_service(bind_ipv4)
-  R->>B: configure each thread role
-  R->>R: TX + RX + control + reporter
+flowchart LR
+  UNIT[systemd / piaoip user] --> BOARD[Pi 5 and PREEMPT_RT checks]
+  BOARD --> ETH[Select wired IPv4]
+  ETH --> POLICY[CPU0 role policy]
+  POLICY --> PEER[AoIP peer runtime]
+  PEER <--> UDP[UDP / PCM / control]
 ```
 
-В `src/rpi5.cpp` нет собственной копии PCM, CRC, UDP control или TX-loop. Эти части
-приходят из закреплённой AoIP-lib. `apps/main.cpp` проверяет окружение, ждёт Ethernet
-и передаёт выбранный IPv4 общему сервису. Системная адресация не изменяется.
+The board wrapper in `apps/main.cpp` validates the platform and selects Ethernet. `src/rpi5.cpp` implements host inspection and thread affinity. The pinned `external/AoIP-lib` dependency implements packet/control/session behavior.
 
-## CPU и права
+RX and TX: CPU0 / FIFO70; control and reporter: CPU0 / SCHED_OTHER. CPU2 and CPU3 are not used by AoIP. This does not mean those CPUs are globally idle or isolated by the library; other software and the boot configuration remain separate concerns.
 
-`initialize()` ограничивает главный поток CPU0 до создания остальных потоков.
-RX и TX закрепляются за CPU0/FIFO70, control/reporter за CPU0/SCHED_OTHER.
-Systemd задаёт общую маску и разрешение RT. CPU1/CPU2/CPU3 не используются даже при сбое
-настройки: демон завершается при отказе применить thread policy.
+The systemd package owns service lifecycle, RT limits and persistent state. The configurator records the PC address and selected Ethernet interface without changing OS addresses. The Pi 5 service waits for an ASIO subscription and stops audio when the session ends. Its LAN service applies the packaged Ethernet tuning policy; see [low-latency operation](LOW-LATENCY.md).
 
-Пакетная служба `pi-aoip-lan` закрепляет IRQ выбранного Ethernet за CPU0.
-Остальные IRQ остаются политикой ОС. Изоляция эффектов, RT-ядро, Ethernet full duplex и
-достаточное охлаждение входят в подготовку системы, а не устанавливаются библиотекой.
-На общей памяти/шине возможна конкуренция с эффектами даже при разных CPU.
+The supplied runtime generates synthetic PCM and checks returned data. It does not open a physical converter or run effects. Network timing results are digital transport results, not ADC-to-DAC latency.
 
-## Жизненный цикл пакета
-
-DEB содержит исполняемый файл, unit, conffile, средства настройки и документацию.
-Пользователь piaoip владеет состоянием. Обновление не теряет настройки и не запускает
-вручную остановленную службу. Удаление сохраняет состояние для восстановления.
-SDK-пакет отдельный: для работы демона компилятор и заголовки не нужны.
-
-## Расширение аудиобэкенда
-
-Следующий уровень интеграции — ADC/DAC и обмен с эффектами через ограниченные очереди
-с явным владением памятью, clock/drift control и xrun-диагностикой. Сейчас сервис
-синтетический; этот репозиторий предоставляет платформенную основу, а не ALSA-драйвер.
+See [installation](BUILD.md), [API](API.md) and [validation](VALIDATION.md).

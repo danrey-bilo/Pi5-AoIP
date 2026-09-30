@@ -1,32 +1,14 @@
-# Raspberry Pi 5: RT-образ и проводная сеть
+**English** | [Русский](RT-IMAGE.ru.md)
 
-Основа: Raspberry Pi OS Lite 64-bit / Debian 13 ARM64. Проверенная плата:
-Raspberry Pi 5 Model B Rev 1.1, 4 ГБ. Образ создаётся на диске ПК через
-выделенный Ethernet; USB-носитель Pi используется только как источник файлов.
+# Pi 5 RT system and wired network
 
-## Ядро
+The release provides application packages, not a public SD/USB operating-system image. Existing private image backups can contain user accounts, SSH keys and network configuration and are not release assets.
 
-Используется официальный пакет `linux-image-rpi-v8-rt`, проверенная версия
-`6.18.50+rpt-rpi-v8-rt`. В архиве Trixie на дату 2026-09-29 отдельного
-`linux-image-rpi-2712-rt` нет. Универсальный вариант v8 поддерживает BCM2712
-и RP1: `CONFIG_PINCTRL_RP1=y`, `CONFIG_PINCTRL_BCM2712=y`, `CONFIG_MFD_RP1=y`.
-Он использует страницы 4 КиБ и `CONFIG_PREEMPT_RT=y`.
+## Reference RT setup
 
-Raspberry Pi перечисляет Pi5 среди устройств с поддержкой `kernel8.img`:
-[официальная таблица загрузочных файлов](https://www.raspberrypi.com/documentation/computers/configuration.html).
-Драйверы RP1 также входят в
-[официальную конфигурацию v8](https://github.com/raspberrypi/linux/blob/rpi-6.18.y/arch/arm64/configs/bcm2711_defconfig).
+The September 2026 reference board was a Pi 5 Model B Rev 1.1 with 4 GB RAM, Raspberry Pi OS Lite 64-bit / Debian 13 and official `linux-image-rpi-v8-rt`, kernel `6.18.50+rpt-rpi-v8-rt`. This is a recorded tested configuration, not a statement about the newest available kernel.
 
-Установка на чистую Lite 64-bit с настроенным Wi-Fi Интернетом:
-
-```sh
-sudo apt update
-sudo apt install linux-image-rpi-v8-rt
-```
-
-Сохраните `config.txt` и `cmdline.txt` из `/boot/firmware` перед настройкой.
-Штатные `kernel_2712.img` и `initramfs_2712` остаются доступны для возврата.
-В конце `/boot/firmware/config.txt`:
+The reference boot files are `kernel8_rt.img` and `initramfs8_rt`, with the original stock kernel retained for recovery. Back up `config.txt` and the one-line `cmdline.txt` before editing them. Do not overwrite `root=PARTUUID=...`.
 
 ```ini
 [pi5]
@@ -35,85 +17,18 @@ initramfs initramfs8_rt followkernel
 [all]
 ```
 
-Добавьте к существующей **единственной строке** `/boot/firmware/cmdline.txt`:
+The reference `cmdline.txt` adds `isolcpus=domain,managed_irq,2-3 irqaffinity=0-1 kthread_cpus=0-1` to its existing single line. Systemd housekeeping uses `[Manager] CPUAffinity=0 1`; AoIP itself uses CPU0. These are system configuration choices, separate from building the platform library.
 
-```text
-isolcpus=domain,managed_irq,2-3 irqaffinity=0-1 kthread_cpus=0-1
-```
+After any reboot, verify the actual kernel/RT mode, CPU placement and retained Ethernet, Wi-Fi, Bluetooth, USB and GPIO. A runtime `--check` does not replace those peripheral checks. The platform can detect `PREEMPT_RT` in `uname` even when `/sys/kernel/realtime` is absent.
 
-Не меняйте `root=PARTUUID=...` установленной системы. `nohz_full` этот
-официальный RT-вариант не включает, поэтому параметр не добавляется.
-Для systemd используется `/etc/systemd/system.conf.d/90-pi5-rt-housekeeping.conf`:
+## Dedicated Ethernet example
 
-```ini
-[Manager]
-CPUAffinity=0 1
-```
+Use nonoverlapping addresses such as PC `192.168.50.1/24` and Pi `192.168.50.2/24`; omit the Ethernet gateway/DNS and retain Wi-Fi for Internet. Configure the Pi's normal network manager, then point PiAoIP at the PC address with `piaoip-configure`. This command records service configuration; it does not assign OS addresses.
 
-После перезагрузки проверяются `uname -a`, `CONFIG_PREEMPT_RT=y` в
-`/boot/config-$(uname -r)` и `2-3` в `/sys/devices/system/cpu/isolated`.
-Файл `/sys/kernel/realtime` у проверенной сборки отсутствует; runtime
-распознаёт RT по строке `PREEMPT_RT` в `uname`.
+Check `ip route get 192.168.50.1`, `ethtool eth0`, and the `pi-aoip`/`pi-aoip-lan` service journals. A filtered ICMP echo is not by itself proof that UDP/SSH connectivity has failed.
 
-Wi-Fi, Bluetooth, USB, Ethernet, GPIO и исходные настройки дисплея/камеры
-сохраняются. Governor устанавливается в `performance`, штатное термоуправление
-и вентилятор остаются активны.
+## Image validation boundary
 
-## LAN без Интернета
+The historical private 2.3.1 image was structurally checked: filesystems, retained boot partition, package metadata and raw/XZ hashes. It was not separately booted from a newly written device. Version 2.4.3 does not rename that old image or present it as a newly validated release image. Install the 2.4.3 runtime package on a suitable existing system instead.
 
-| Узел | IPv4 | Маска | Шлюз/DNS на Ethernet |
-|---|---|---|---|
-| ПК | 192.168.1.1 | 255.255.255.0 | не задаются |
-| Pi5 / eth0 | 192.168.1.2 | 255.255.255.0 | не задаются |
-
-Для нового профиля NetworkManager:
-
-```sh
-sudo nmcli connection add type ethernet ifname eth0 con-name Pi5-AoIP-LAN \
-  ipv4.method manual ipv4.addresses 192.168.1.2/24 ipv4.never-default yes \
-  ipv4.ignore-auto-dns yes ipv6.method link-local \
-  connection.autoconnect yes connection.autoconnect-priority 999
-sudo nmcli connection up Pi5-AoIP-LAN
-ip route get 192.168.1.1
-```
-
-Результат должен указывать `dev eth0 src 192.168.1.2`. Интернет проходит
-через Wi-Fi. SSH и SFTP для передачи файлов используют `admin@192.168.1.2`.
-Проверяется `1000Mb/s`, `Full`, `Link detected: yes` в `ethtool eth0`.
-Отсутствие ответа ПК на ICMP само по себе не означает отказ SSH/UDP: Windows
-может фильтровать ping.
-
-## Образ на ПК
-
-Сборочные средства находятся в локальном AoIP-debug-tool, `tools/pi5`.
-NBD-сервер ПК слушает только loopback; временный обратный SSH-туннель
-работает через `192.168.1.2`. Pi записывает файловые системы в `/dev/nbd0`,
-за которым находится **файл на ПК**. Разделы USB-источника не форматируются.
-
-Образ 4 ГиБ содержит MBR, FAT32 boot 512 МиБ, ext4 root, RT-ядро, firmware,
-сохранённую конфигурацию и установленную службу AoIP 2.3.1. Профиль
-8×8 / 192 кГц / PCM32, capture16; Ethernet coalescing 0, EEE off,
-служба и IRQ Ethernet закреплены на CPU0. Копируются
-используемые файлы; swap, временные файлы и APT-кэш исключаются. PARTUUID
-в boot cmdline и fstab переписываются под новую таблицу разделов.
-
-Итоговая копия 2.3.1 получена на ПК из исходного образа, ранее сохранённого
-через LAN. Проверенные на настоящей Pi ARM64 runtime/SDK DEB применены к
-копии через `tools/pi5/update-image-on-pc.sh` в WSL. Этот шаг не запускает
-ARM64 maintainer scripts на x86: их работа отдельно проверена нативной
-установкой на Pi. Файлы пакетов, dpkg metadata, профиль и включение службы
-LAN обновлены; FAT boot и PARTUUID сохранены без изменений. Никакой образ
-на медленный USB-носитель Pi не записывается.
-
-Для копии 2.3.1 проверены `e2fsck -fn`, неизменность FAT-раздела по SHA256,
-загрузочные файлы, service/profile и SHA256 raw/XZ с полным распаковыванием.
-`fsck.vfat` в используемой WSL-среде отсутствует; FAT проверялся при создании
-исходной копии 2.2 и с тех пор не изменялся. Загрузка RT-системы на Pi5
-проверена. Сам обновлённый образ 2.3.1 на отдельный
-носитель в рамках этой работы не записывался; отдельная загрузка из него
-ещё не проверена. После будущей записи на больший носитель файловую систему
-можно расширить через `sudo raspi-config` → Advanced Options → Expand Filesystem.
-
-Образ персональный: он сохраняет существующего пользователя и настройки
-исходной системы. В этот Git-репозиторий публикуются исходники платформы;
-raw/XZ образы и DEB-артефакты хранятся на ПК.
+See [installation](BUILD.md), [release validation](VALIDATION.md), and the [historical record](VALIDATION-2026-09-29.md).

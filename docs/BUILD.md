@@ -1,119 +1,81 @@
-# Raspberry Pi 5: сборка, установка и настройка
+**English** | [Русский](BUILD.ru.md)
 
-## Требования
+# Raspberry Pi 5: installation, build and recovery
 
-Raspberry Pi 5 Model B, Raspberry Pi OS Lite 64-bit / Debian 13 ARM64,
-PREEMPT_RT, четыре online CPU и проводной Gigabit Ethernet с MTU 1500.
-Пакет проверен с ядром `6.18.50+rpt-rpi-v8-rt`; само ядро устанавливается отдельно.
-Wi-Fi может обеспечивать Интернет независимо от аудио-LAN.
+## Requirements
 
-## Зависимость AoIP-lib
+Raspberry Pi 5 Model B, Debian 13 ARM64, a working PREEMPT_RT kernel, four online CPUs and wired Gigabit Ethernet with MTU 1500. Install and verify the RT kernel separately. The package does not replace the kernel or configure OS IP addresses. Wi-Fi can remain available for Internet and maintenance.
 
-`external/AoIP-lib` — git submodule, закреплённый конкретным commit. После обычного
-clone выполните `git submodule update --init --recursive`. Для приватных
-репозиториев Git должен иметь доступ и к основному проекту, и к AoIP-lib.
-Токены и пароли в CMake или `.gitmodules` не сохраняются.
+## Install the runtime
 
-Вместо submodule можно передать `-DAOIP_SOURCE_DIR=/path/to/AoIP-lib` либо
-установить SDK AoIP-lib и передать `-DCMAKE_PREFIX_PATH=/path/to/sdk`.
-Приоритет: явный source path → submodule → установленный пакет.
-Чтобы явно использовать установленный SDK, не инициализируйте submodule.
-Обновление зависимости: выберите проверенный commit внутри submodule и
-закоммитьте новый gitlink в родительском репозитории.
-
-## Сборка библиотеки и службы
+Download `piaoip-rpi5_2.4.3-1_arm64.deb` from the [2.4.3 release](https://github.com/danrey-bilo/Pi5-AoIP/releases/tag/v2.4.3).
 
 ```sh
-sudo apt install build-essential cmake dpkg-dev
-taskset -c 0 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-taskset -c 0 cmake --build build --parallel 2
-./build/bin/aoip_peer_rpi5 --check
-```
-
-`--check` только читает окружение; обычный запуск включает политику CPU0.
-Сборка платформы на другом Linux может проверить компиляцию, но не доказывает
-работу Pi5/RT. Для SDK: `cmake --install build --prefix "$PWD/sdk"`.
-
-## DEB
-
-Скрипты создания пакетов находятся в закрытом
-[AoIP-debug-tool](https://github.com/danrey-bilo/AoIP-debug-tool/blob/main/docs/BUILD.md).
-Основная CMake-сборка не зависит от них. Для установки скопируйте полученный DEB
-в текущий каталог Pi:
-
-```sh
-sudo apt install ./piaoip-rpi5_2.3.1-1_arm64.deb
-sudo piaoip-configure --interface eth0 --peer 192.168.1.1 --restart
+sudo apt install ./piaoip-rpi5_2.4.3-1_arm64.deb
+sudo piaoip-configure --interface eth0 --peer 192.168.50.1 --restart
 /usr/lib/piaoip/aoip_peer_rpi5 --check
-systemctl status pi-aoip.service --no-pager
+systemctl status pi-aoip --no-pager
+journalctl -u pi-aoip -b --no-pager
 ```
 
-Замените `192.168.1.1` на Ethernet IPv4 компьютера. Проверенная прямая LAN:
-Pi5 — `192.168.1.2/24`, ПК — `192.168.1.1/24`, маска `255.255.255.0`.
-Эти адреса команда настройки не назначает ОС. На аудио-LAN шлюз/DNS не нужны;
-Интернет можно оставить на Wi-Fi. Для DHCP закрепите адрес компьютера.
-До `piaoip-configure` служба заканчивает запуск с кодом 2 и понятной подсказкой.
-Автоматический выбор IP компьютера в Linux не поддерживается этим выпуском.
+Replace `192.168.50.1` with the **PC Ethernet address**. Example dedicated link: PC `192.168.50.1/24`, Pi `192.168.50.2/24`, no Ethernet gateway or DNS. Choose a subnet that does not overlap other networks. With DHCP, reserve the PC address. Before initial configuration, startup exits with a configuration hint.
 
-| Путь | Назначение |
+| Path | Purpose |
 |---|---|
-| `/usr/lib/piaoip/aoip_peer_rpi5` | Исполняемый файл |
-| `/etc/piaoip/peer.conf` | Interface и IPv4 компьютера, conffile dpkg |
-| `/var/lib/piaoip/profile.txt` | Сохранённый аудиопрофиль, владелец piaoip |
-| `journalctl -u pi-aoip.service -b` | Журнал текущей загрузки |
+| `/usr/lib/piaoip/aoip_peer_rpi5` | Runtime binary |
+| `/etc/piaoip/peer.conf` | Wired interface and PC IPv4; dpkg conffile |
+| `/var/lib/piaoip/profile.txt` | Device profile owned by service user `piaoip` |
+| `/usr/share/doc/piaoip-rpi5` | English/Russian instructions and license |
 
-Число физических входов/выходов задаётся локально на каждой Pi. Для устройства
-8×8: `sudo piaoip-configure --inputs 8 --outputs 8 --restart`.
-Windows получает эти числа через discovery; изменить их через панель, INI или
-сетевой запрос нельзя. Пункты «Каналы» включают/отключают использование уже
-существующих каналов, сохраняя их физические номера и число каналов ASIO.
+Fresh profile: `8 8 192000 32 16` (`inputs outputs rate bits capture_frames`). Existing profiles are preserved. Use `sudo piaoip-configure --show` to read protected state. Windows buffers are configured separately. The Pi 5 service waits for an ASIO subscription and stops audio when the session ends. Its LAN service applies the packaged Ethernet tuning policy; see [low-latency operation](LOW-LATENCY.md).
 
-Профиль по умолчанию: 8×8, 192 кГц, PCM32, до 16 кадров в сетевом пакете.
-Служба ждёт подписку ASIO и не отправляет фоновый PCM. v3 поддерживает маски
-каналов, точный цифровой ноль, штатную отписку и 3-секундную аренду сессии.
-Другие устройства до 64×64 настраиваются на самой Pi; Windows-драйвер общий.
-Частота, PCM и буферы настраиваются в панели Windows. См. [режим 8×8](LOW-LATENCY.md).
-`pi-aoip-lan.service` устанавливает rx-usecs/tx-usecs=0 и отключает EEE на
-выбранном Ethernet-интерфейсе. Wi-Fi для Интернета не затрагивается.
-IRQ выбранного Ethernet также закрепляется за CPU0.
-Размер ASIO-буфера и guard настраиваются на Windows отдельно.
-RX/TX: CPU0/FIFO70; control/reporter: CPU0/SCHED_OTHER.
-`LimitRTPRIO=80`, `LimitMEMLOCK=infinity`, `CPUAffinity=0` задаёт systemd unit.
-При невозможности применить ограничения процесс завершается, а не запускается
-на произвольных CPU. CPU1/CPU2/CPU3 не используются сетевой службой.
+## Scheduling
 
-## Обновление и удаление
+RX and TX: CPU0 / FIFO70; control and reporter: CPU0 / SCHED_OTHER. All service threads are confined to CPU0; CPU2 and CPU3 remain free of AoIP. The unit grants `LimitRTPRIO=80` and `LimitMEMLOCK=infinity`. Startup reports a board/RT/affinity failure rather than silently claiming the requested policy.
+
+Check real placement while streaming:
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.3.1-1_arm64.deb
-sudo apt remove piaoip-rpi5
+systemctl show pi-aoip -p MainPID -p CPUAffinity
+ps -eLo pid,tid,psr,cls,rtprio,comm | grep aoip
 ```
 
-Активная служба перезапускается при обновлении; вручную остановленная остаётся
-остановленной. Конфигурация сохраняется по правилам dpkg. `/var/lib/piaoip`
-и пользователь piaoip сохраняются после remove/purge. Для чтения профиля при
-необходимости используйте `sudo`: файл намеренно доступен только владельцу.
+## Build from source
 
-Миграция старой установки с известным `/home/admin/aoip_peer` сохраняет unit
-в `/var/lib/piaoip/legacy-2.1`. Произвольный локальный unit автоматически не заменяется.
-Для ручного возврата после удаления пакета восстановите сохранённый unit,
-выполните `systemctl daemon-reload` и `systemctl enable --now pi-aoip.service`.
-Исходные бинарник и профиль старой установки должны оставаться на месте.
+```sh
+git clone --recurse-submodules https://github.com/danrey-bilo/Pi5-AoIP.git
+cd Pi5-AoIP
+sudo apt install build-essential cmake
+taskset -c 0,1 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+taskset -c 0,1 cmake --build build --parallel 2
+./build/bin/aoip_peer_rpi5 --version
+./build/bin/aoip_peer_rpi5 --check
+cmake --install build --prefix "$PWD/sdk"
+```
 
-## Своя программа
+`external/AoIP-lib` is pinned to the compatible release. An explicit `-DAOIP_SOURCE_DIR=/path/to/AoIP-lib` overrides it. Without either source tree, CMake can use an installed `AoIP 2.4.3` SDK through `CMAKE_PREFIX_PATH`. AoIP-lib is private. Source builds require authorized repository access or its compatible SDK. Public source archives include only this platform repository, not the private dependency.
+
+`--check` reads the host without starting PCM. Compiling on another ARM64 board verifies a build, not operation on Pi 5.
+
+## Optional SDK
+
+`piaoip-rpi5-sdk_2.4.3-1_arm64.deb` contains core/peer/platform static libraries, headers and CMake exports. It is intended for a compatible Debian 13 ARM64/GCC 14 toolchain; the runtime does not need it.
 
 ```cmake
-find_package(Pi5AoIP 2.3.1 CONFIG REQUIRED)
+find_package(Pi5AoIP 2.4.3 CONFIG REQUIRED)
 target_link_libraries(my_service PRIVATE Pi5AoIP::platform)
 ```
 
-Пакет `piaoip-rpi5-sdk` необязателен для работающей службы. Он содержит архивы общего
-AoIP и платформы, заголовки, CMake exports и лицензии. Используйте совместимый
-Debian 13 ARM64 toolchain. [Публичный API](API.md).
+## Upgrade and remove
 
-## Проверки разработчика
+```sh
+sudo apt install ./piaoip-rpi5_2.4.3-1_arm64.deb
+sudo apt remove piaoip-rpi5
+```
 
-Тесты SDK, жизненного цикла пакета и утилита `piaoip-doctor` перенесены в
-[AoIP-debug-tool](https://github.com/danrey-bilo/AoIP-debug-tool).
-Они не входят в библиотеку или пользовательский DEB.
-Результаты проверки конкретной Pi5: [VALIDATION.md](VALIDATION.md).
+Close the Windows audio host before upgrading. Package scripts preserve existing peer/profile settings and handle the service lifecycle. A custom local systemd unit is not overwritten automatically. The known legacy unit is backed up under `/var/lib/piaoip/legacy-2.1`; this directory name is a migration identifier, not the installed version. State and the service user remain after removal. Restore a saved package/configuration for rollback.
+
+Pi 4 and Pi 5 runtime packages use the same service/state paths and cannot be installed together. Read [validation](VALIDATION.md) before treating the release as qualified for a workload.
+
+
+The optional SDK includes headers from the private AoIP-lib dependency and is distributed to authorized developers in the [private AoIP-lib release](https://github.com/danrey-bilo/AoIP-lib/releases/tag/v2.4.3). The public platform release contains the runtime package.

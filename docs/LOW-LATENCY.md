@@ -1,53 +1,23 @@
-# Pi5: 8×8 / 192 кГц / PCM32, версия 2.3.1
+**English** | [Русский](LOW-LATENCY.ru.md)
 
-[Установка](BUILD.md) · [RT-образ](RT-IMAGE.md) · [Проверки](VALIDATION.md)
+# Pi 5 operation and buffer selection
 
-На данном устройстве физический профиль — 8 входов и 8 выходов. Их число
-настраивается **на Pi** командой
-`sudo piaoip-configure --inputs 8 --outputs 8 --restart`
-и сообщается Windows через discovery. Выбора числа физических
-каналов в Windows нет. Кнопка «Каналы…» задаёт маски существующих каналов,
-а «LAN receive buffer / frames» — сетевой запас в диапазоне 0–2048 кадров
-для любого устройства. Частоту, PCM и ASIO-блок можно менять в панели.
+Version 2.4.3 starts a fresh Pi 5 installation with 8 inputs, 8 outputs, 192 kHz and PCM32. The device's physical channel counts are configured locally:
 
-Для этого ПК проверенный рабочий профиль: **ASIO64, LAN448**, 192000 Гц,
-PCM32, маски `ff`/`ff`, энергосбережение включено. Pi передаёт по 16 кадров
-(0,0833 мс) на входной пакет, готовый выходной ASIO-блок отправляется сразу,
-делясь только по MTU. ASIO64 даёт период 0,333 мс; guard448 — 2,333 мс.
-Драйвер сообщает хосту Input 528 кадров (2,750 мс), Output 64 кадра
-(0,333 мс), Overall 592 кадра (3,083 мс). Это заявленная задержка цифрового
-драйвера, **не измеренная задержка ADC → DAC**.
+```sh
+sudo piaoip-configure --inputs 8 --outputs 8 --restart
+```
 
-В двух последовательных 180-секундных цифровых тестах Pi → ASIO callback → Pi
-RTT p50 был 2,695 и 2,696 мс; p99 — 2,788 и 2,785 мс, max — 4,223 и
-4,182 мс. За 360 секунд: 0 пропущенных и опоздавших кадров, deadline miss,
-переполнений, expired TX, ASIO time errors и callback, превысивших период.
-ASIO64/LAN256 дал 16 пропущенных кадров; LAN320 — 80, оба за 180 секунд.
-ASIO32/LAN512 не терял PCM, но один callback превысил свой период 0,167 мс.
-Один прогон ASIO64/LAN512 тоже был без срывов, но сообщил более высокую
-входную задержку 3,083 мс. LAN448 — наименьший запас, прошедший здесь два
-полных прогона; это не гарантия при любой нагрузке DAW или для других ПК.
-На старом снимке Live заявлял Input 2,67 мс и Overall 4,00 мс: новый Overall
-ниже, но заявленный Input 2,75 мс немного выше. Физическую задержку записи
-пока невозможно измерить без ADC backend.
-Таблица и условия — в [проверках](VALIDATION.md).
+Windows discovers these counts. **Device → Channels** selects existing channels; it does not reconfigure the physical device. Choose sample rate, bit depth and ASIO/LAN buffers in the Windows panel. The LAN field accepts integers from 0 to 2048 samples. Automatic tuning is not part of the release.
 
-Pi5 работает с ядром `6.18.50+rpt-rpi-v8-rt` и PREEMPT_RT. Служба AoIP,
-включая RX, TX, control и reporter, закреплена на CPU0; IRQ выбранного
-Ethernet также на CPU0. CPU1/CPU2/CPU3 не используются службой AoIP.
-Это не обещает, что вся ОС не запустит иные задачи на этих ядрах.
-На выделенном LAN: ПК `192.168.1.1/24`, Pi `192.168.1.2/24`;
-rx-usecs/tx-usecs=0, EEE off. Wi-Fi для Интернета, Bluetooth, USB и GPIO
-сохраняются.
+All Pi 5 AoIP roles use CPU0. The package's separate `pi-aoip-lan.service` selects the configured wired interface, requests zero RX/TX interrupt coalescing, disables EEE and assigns its discovered Ethernet IRQs to CPU0. It does not change Windows settings, disable Wi-Fi/USB/Bluetooth/GPIO or claim that every OS task stays off the other cores. Inspect the LAN service journal if the interface does not support a requested ethtool setting.
 
-Энергосбережение передаёт только выбранные и открытые хостом каналы;
-точный PCM-ноль останавливает аудиопакеты после трёх коротких уведомлений.
-Как только ненулевой сигнал появляется, он передаётся в той же сессии.
-Хостовые ASIO callbacks при запущенной DAW продолжаются. При отсутствии
-подписки Pi не отправляет фоновый PCM.
+The service waits for an ASIO subscription. With V3 traffic reduction enabled, only selected host channels carry PCM; exact zero can suspend audio datagrams after three transition markers. A running DAW still receives ASIO callbacks. Stop unsubscribes and an abandoned session expires after three seconds.
 
-Рабочая задержка зависит от ПК, нагрузки и аудиотракта. Для меньшего
-буфера проверяйте p50/p95/p99/max RTT, пропущенные/опоздавшие кадры,
-deadline misses, очередь, expired TX, underrun и длительность callbacks
-на своей DAW. ADC/DAC/I²S backend ещё не реализован; аналоговую Input,
-Output и Overall задержку этими цифровыми тестами подтвердить нельзя.
+## Measured results versus settings
+
+Historical 2.3.1 runs on one Pi 5 / Windows Intel I225-V system passed two 180-second digital tests at ASIO64/LAN448 with zero missing/late frames and deadline misses. Their RTT p50 values were 2.695/2.696 ms, p95 2.768 ms, p99 2.788/2.785 ms and max 4.223/4.182 ms. These were synthetic digital loops, not ADC/DAC measurements. Later Windows work validated different buffers for that computer; neither result is a universal driver default.
+
+For your computer, first choose a stable LAN buffer with ASIO fixed, then reduce ASIO while retaining that LAN value. Record profile, duration, p50/p95/p99/max, missing/late/deadline/overflow/TX expiry/errors and CPU load under the actual DAW workload. Small average RTT alone does not prove stability.
+
+The full historical record is in [2026-09-29 validation](VALIDATION-2026-09-29.md). Current release checks are in [2.4.3 validation](VALIDATION.md). The service remains synthetic PCM; no physical ADC/DAC/I2S backend is supplied.
