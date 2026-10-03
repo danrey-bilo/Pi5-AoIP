@@ -2,7 +2,7 @@
 
 # API платформы Pi5
 
-`find_package(Pi5AoIP 2.4.3 CONFIG REQUIRED)` и `Pi5AoIP::platform`.
+`find_package(Pi5AoIP 2.5.0 CONFIG REQUIRED)` и `Pi5AoIP::platform`.
 
 ```cpp
 #include <aoip/rpi5.hpp>

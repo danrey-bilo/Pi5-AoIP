@@ -1,15 +1,8 @@
-**English** | [Русский](VALIDATION.ru.md)
+**English** | [Русский](RELEASE-2.5.0.ru.md)
 
-# Validation 2.5.0
+# Pi5-AoIP 2.5.0
 
-| Check | Result / scope |
-|---|---|
-| Windows x64 Release | 13/13 CTest: core, transport, datagrams, leases, budget, PCM, examples, config, IOCP, bridge, session, StartGate |
-| Standalone Windows service | ASIO disabled, no ASIO SDK configured; service/probe build passed |
-| Pi5 ARM64 Release | 9/9 native CTest with RT policy; GCC14, Debian13, PREEMPT_RT 6.18.50 |
-| Installed SDK exports | Three consumers passed: Windows AoIP, ARM64 AoIP, ARM64 Pi5; exact 2.5.0 |
-| ACX x64 | Clang22 MSVC ABI build, InfVerif and Inf2Cat passed; unsigned/uninstalled |
-| Packaging | MSI tables/payload/versions and ARM64 DEB metadata/content inspected; no new installation lifecycle |
+Updated Raspberry Pi 5 transport; fresh installs use 8×8 / 192 kHz / PCM24 / capture32. Saved profiles are preserved.
 
 Fresh binaries, 300-second block256/guard1536/callback50 window: **PASS**, digital RTT p50/p95/p99/max **8.920/9.446/9.573/16.599 ms**, 1,123,192 samples. Primary Windows errors: zero.
 
@@ -23,4 +16,4 @@ The earlier fresh-build block256/guard1024 case ran for 900 s and **FAILED**: la
 
 These are synthetic digital Pi → Windows service echo → Pi measurements. ADC/DAC, a real DAW, installed ACX/WASAPI, supported MSVC driver build and guard1024 fault recovery remain unqualified. Buffers are manual. Multiple Pi devices are deferred. USB will have a separate repository/library; its implementation is on hold. Pi4 was not rebuilt or retested and remains unchanged. **Pre-release.**
 
-[Complete measurements and failed cases](https://github.com/danrey-bilo/Win11-asio-AoIP/blob/v2.5.0/docs/measurements/README.md) · [Release notes](RELEASE-2.5.0.md)
+[Transport / architecture](TRANSPORT-2.5.md) · [Validation](VALIDATION.md)

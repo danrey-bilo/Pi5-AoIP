@@ -1,15 +1,8 @@
-[English](VALIDATION.md) | **Русский**
+[English](RELEASE-2.5.0.md) | **Русский**
 
-# Validation 2.5.0
+# Pi5-AoIP 2.5.0
 
-| Проверка | Результат / область |
-|---|---|
-| Windows x64 Release | 13/13 CTest: core, transport, datagrams, leases, budget, PCM, examples, config, IOCP, bridge, session, StartGate |
-| Самостоятельная служба Windows | ASIO отключён, SDK не задан; сборка service/probe прошла |
-| Pi5 ARM64 Release | 9/9 native CTest with RT policy; GCC14, Debian13, PREEMPT_RT 6.18.50 |
-| Установленные SDK exports | Три consumers прошли: Windows AoIP, ARM64 AoIP, ARM64 Pi5; точная версия 2.5.0 |
-| ACX x64 | Clang22 MSVC ABI build, InfVerif and Inf2Cat passed; не подписан / не установлен |
-| Пакеты | Проверены MSI tables/payload/versions и ARM64 DEB metadata/content; нового цикла установки не было |
+Обновлённый transport Raspberry Pi 5; новая установка — 8×8 / 192 кГц / PCM24 / capture32. Сохранённые профили не меняются.
 
 Свежие файлы: 300 секунд, block256/guard1536/callback50 — **PASS**. Цифровой RTT p50/p95/p99/max — **8.920/9.446/9.573/16.599 мс**, 1,123,192 samples. Основные Windows errors: ноль.
 
@@ -23,4 +16,4 @@ Callback/wake/RX gap/TX age max: 161.6/692.9/7270.0/884.0 мкс. Pi process CPU
 
 Измерен synthetic digital Pi → Windows service echo → Pi. ADC/DAC, реальная DAW, установленный ACX/WASAPI, поддерживаемая MSVC-сборка драйвера и fault recovery guard1024 ещё не квалифицированы. Buffers ручные. Несколько Pi отложены. Для USB будет отдельный репозиторий/библиотека; реализация сейчас отложена. Pi4 не пересобран/не проверен и не изменён. **Pre-release.**
 
-[Полные измерения и неудачные прогоны](https://github.com/danrey-bilo/Win11-asio-AoIP/blob/v2.5.0/docs/measurements/README.ru.md) · [Описание релиза](RELEASE-2.5.0.ru.md)
+[Transport / architecture](TRANSPORT-2.5.ru.md) · [Validation](VALIDATION.ru.md)

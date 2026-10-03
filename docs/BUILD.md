@@ -8,10 +8,10 @@ Raspberry Pi 5 Model B, Debian 13 ARM64, a working PREEMPT_RT kernel, four onlin
 
 ## Install the runtime
 
-Download `piaoip-rpi5_2.4.3-1_arm64.deb` from the [2.4.3 release](https://github.com/danrey-bilo/Pi5-AoIP/releases/tag/v2.4.3).
+Download `piaoip-rpi5_2.5.0-1_arm64.deb` from the [2.5.0 release](https://github.com/danrey-bilo/Pi5-AoIP/releases/tag/v2.5.0).
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.4.3-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.5.0-1_arm64.deb
 sudo piaoip-configure --interface eth0 --peer 192.168.50.1 --restart
 /usr/lib/piaoip/aoip_peer_rpi5 --check
 systemctl status pi-aoip --no-pager
@@ -27,7 +27,7 @@ Replace `192.168.50.1` with the **PC Ethernet address**. Example dedicated link:
 | `/var/lib/piaoip/profile.txt` | Device profile owned by service user `piaoip` |
 | `/usr/share/doc/piaoip-rpi5` | English/Russian instructions and license |
 
-Fresh profile: `8 8 192000 32 16` (`inputs outputs rate bits capture_frames`). Existing profiles are preserved. Use `sudo piaoip-configure --show` to read protected state. Windows buffers are configured separately. The Pi 5 service waits for an ASIO subscription and stops audio when the session ends. Its LAN service applies the packaged Ethernet tuning policy; see [low-latency operation](LOW-LATENCY.md).
+Fresh profile: `8 8 192000 24 32` (`inputs outputs rate bits capture_frames`). Existing profiles are preserved. Use `sudo piaoip-configure --show` to read protected state. Windows buffers are configured separately. The Pi 5 service waits for a V3 subscription from the Windows service or ASIO adapter and stops audio when the session ends. Its LAN service applies the packaged Ethernet tuning policy; see [low-latency operation](LOW-LATENCY.md).
 
 ## Scheduling
 
@@ -53,23 +53,23 @@ taskset -c 0,1 cmake --build build --parallel 2
 cmake --install build --prefix "$PWD/sdk"
 ```
 
-`external/AoIP-lib` is pinned to the compatible release. An explicit `-DAOIP_SOURCE_DIR=/path/to/AoIP-lib` overrides it. Without either source tree, CMake can use an installed `AoIP 2.4.3` SDK through `CMAKE_PREFIX_PATH`. AoIP-lib is private. Source builds require authorized repository access or its compatible SDK. Public source archives include only this platform repository, not the private dependency.
+`external/AoIP-lib` is pinned to the compatible release. An explicit `-DAOIP_SOURCE_DIR=/path/to/AoIP-lib` overrides it. Without either source tree, CMake can use an installed `AoIP 2.5.0` SDK through `CMAKE_PREFIX_PATH`. AoIP-lib is private. Source builds require authorized repository access or its compatible SDK. Public source archives include only this platform repository, not the private dependency.
 
 `--check` reads the host without starting PCM. Compiling on another ARM64 board verifies a build, not operation on Pi 5.
 
 ## Optional SDK
 
-`piaoip-rpi5-sdk_2.4.3-1_arm64.deb` contains core/peer/platform static libraries, headers and CMake exports. It is intended for a compatible Debian 13 ARM64/GCC 14 toolchain; the runtime does not need it.
+`piaoip-rpi5-sdk_2.5.0-1_arm64.deb` contains core/peer/platform static libraries, headers and CMake exports. It is intended for a compatible Debian 13 ARM64/GCC 14 toolchain; the runtime does not need it.
 
 ```cmake
-find_package(Pi5AoIP 2.4.3 CONFIG REQUIRED)
+find_package(Pi5AoIP 2.5.0 CONFIG REQUIRED)
 target_link_libraries(my_service PRIVATE Pi5AoIP::platform)
 ```
 
 ## Upgrade and remove
 
 ```sh
-sudo apt install ./piaoip-rpi5_2.4.3-1_arm64.deb
+sudo apt install ./piaoip-rpi5_2.5.0-1_arm64.deb
 sudo apt remove piaoip-rpi5
 ```
 
@@ -78,4 +78,4 @@ Close the Windows audio host before upgrading. Package scripts preserve existing
 Pi 4 and Pi 5 runtime packages use the same service/state paths and cannot be installed together. Read [validation](VALIDATION.md) before treating the release as qualified for a workload.
 
 
-The optional SDK includes headers from the private AoIP-lib dependency and is distributed to authorized developers in the [private AoIP-lib release](https://github.com/danrey-bilo/AoIP-lib/releases/tag/v2.4.3). The public platform release contains the runtime package.
+The optional SDK includes headers from the private AoIP-lib dependency and is distributed to authorized developers in the [private AoIP-lib release](https://github.com/danrey-bilo/AoIP-lib/releases/tag/v2.5.0). The public platform release contains the runtime package.

@@ -29,6 +29,6 @@ Check `ip route get 192.168.50.1`, `ethtool eth0`, and the `pi-aoip`/`pi-aoip-la
 
 ## Image validation boundary
 
-The historical private 2.3.1 image was structurally checked: filesystems, retained boot partition, package metadata and raw/XZ hashes. It was not separately booted from a newly written device. Version 2.4.3 does not rename that old image or present it as a newly validated release image. Install the 2.4.3 runtime package on a suitable existing system instead.
+The historical private 2.3.1 image was structurally checked: filesystems, retained boot partition, package metadata and raw/XZ hashes. It was not separately booted from a newly written device. Version 2.5.0 does not rename that old image or present it as a newly validated release image. Install the 2.5.0 runtime package on a suitable existing system instead.
 
 See [installation](BUILD.md), [release validation](VALIDATION.md), and the [historical record](VALIDATION-2026-09-29.md).
